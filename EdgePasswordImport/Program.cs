@@ -50,43 +50,56 @@ namespace EdgePasswordImport
             {
                 csv.Configuration.RegisterClassMap<CsvRecordMap>();
 
-                int count = 0;
+                int count = 0, failed = 0;
                 foreach (CsvRecord record in csv.GetRecords<CsvRecord>())
                 {
-                    // get a URL without path
-                    Uri uri = new Uri(record.url);
-                    string url = $"{uri.Scheme}{Uri.SchemeDelimiter}{uri.Authority}/"; // slash at the end is important
+                    try {
+                        // get a URL without path
+                        Uri uri = new Uri(record.url);
+                        string url = $"{uri.Scheme}{Uri.SchemeDelimiter}{uri.Authority}/"; // slash at the end is important
 
-                    PasswordCredential cr = null;
+                        PasswordCredential cr = null;
 
-                    // try to retrieve the credential if it already exists
-                    try
-                    {
-                        cr = pv.Retrieve(url, record.username);
-                    } catch {}
+                        // try to retrieve the credential if it already exists
+                        try
+                        {
+                            cr = pv.Retrieve(url, record.username);
+                        } catch {}
 
-                    if (cr != null)
-                    {
-                        cr.Password = record.password;
+                        if (cr != null)
+                        {
+                            cr.Password = record.password;
+                        }
+                        else
+                        {
+                            cr = new PasswordCredential(url, record.username, record.password);
+                        }
+
+                        // mark the credential as usable by Edge
+                        cr.Properties["applicationid"] = new Guid("4e3cb6d5-2556-4cd8-a48d-c755c737cba6");
+
+                        // and to make it look genuine
+                        cr.Properties["application"] = "Internet Explorer";
+
+                        // add/update
+                        pv.Add(cr);
+
+                        count++;
                     }
-                    else
+                    catch (Exception e)
                     {
-                        cr = new PasswordCredential(url, record.username, record.password);
+                        Console.Out.WriteLine($"Failed to import account for {record.url} with login {record.username} and password length {record.password.Length} with error:");
+                        Console.WriteLine(e.ToString());
+
+                        failed++;
                     }
-
-                    // mark the credential as usable by Edge
-                    cr.Properties["applicationid"] = new Guid("4e3cb6d5-2556-4cd8-a48d-c755c737cba6");
-
-                    // and to make it look genuine
-                    cr.Properties["application"] = "Internet Explorer";
-
-                    // add/update
-                    pv.Add(cr);
-
-                    count++;
                 }
 
                 Console.Out.WriteLine($"Imported {count} credentials.");
+                if (failed > 0)
+                {
+                    Console.Out.WriteLine($"Failed to import {failed} credentials.");
+                }
             }
         }
     }
