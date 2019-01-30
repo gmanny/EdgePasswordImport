@@ -72,7 +72,7 @@ namespace EdgePasswordImport
                         }
                         else
                         {
-                            cr = new PasswordCredential(url, record.username, record.password);
+                            cr = new PasswordCredential(url, String.IsNullOrEmpty(record.username) && !String.IsNullOrEmpty(record.password) ? "-not-specified-" : record.username, record.password);
                         }
 
                         // mark the credential as usable by Edge
